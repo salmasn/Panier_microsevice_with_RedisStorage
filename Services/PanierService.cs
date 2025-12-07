@@ -24,6 +24,34 @@ namespace PanierService.Services
             return panier.Id;
         }
 
+        /// <summary>
+        /// ✅ NOUVEAU: Garantit qu'un panier existe ou le crée automatiquement
+        /// </summary>
+        private async Task<Panier> ObtenirOuCreerPanierAsync(string panierId)
+        {
+            var key = $"panier:{panierId}";
+            var panier = await _redis.GetAsync<Panier>(key);
+
+            if (panier == null)
+            {
+                _logger.LogInformation("Panier {PanierId} inexistant, création automatique", panierId);
+
+                // Créer un nouveau panier avec l'ID spécifié
+                panier = new Panier
+                {
+                    Id = panierId, // ✅ Utiliser le panierId fourni au lieu d'un nouveau GUID
+                    Items = new List<PanierItem>(),
+                    DateCreation = DateTime.UtcNow,
+                    DerniereModification = DateTime.UtcNow
+                };
+
+                await _redis.SetAsync(key, panier, TimeSpan.FromDays(EXPIRATION_JOURS));
+                _logger.LogInformation("Panier {PanierId} créé automatiquement", panierId);
+            }
+
+            return panier;
+        }
+
         public async Task<PanierResponseDto> ObtenirPanierAsync(string panierId)
         {
             var key = $"panier:{panierId}";
@@ -38,69 +66,82 @@ namespace PanierService.Services
             return MapToDto(panier);
         }
 
+        /// <summary>
+        /// ✅ MODIFIÉ: Crée automatiquement le panier si nécessaire
+        /// </summary>
         public async Task<PanierResponseDto> AjouterArticleAsync(string panierId, AjouterArticleDto dto)
         {
-            var key = $"panier:{panierId}";
-            var panier = await _redis.GetAsync<Panier>(key);
-
-            if (panier == null)
+            try
             {
-                throw new KeyNotFoundException($"Panier {panierId} introuvable");
-            }
+                // ✅ Utiliser ObtenirOuCreerPanierAsync au lieu de GetAsync
+                var panier = await ObtenirOuCreerPanierAsync(panierId);
 
-            var itemExistant = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
+                var itemExistant = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
 
-            if (itemExistant != null)
-            {
-                itemExistant.Quantite += dto.Quantite;
-            }
-            else
-            {
-                panier.Items.Add(new PanierItem
+                if (itemExistant != null)
                 {
-                    ArticleId = dto.ArticleId,
-                    Nom = dto.Nom,
-                    Prix = dto.Prix,
-                    Quantite = dto.Quantite
-                });
-            }
-
-            panier.DerniereModification = DateTime.UtcNow;
-            await _redis.SetAsync(key, panier, TimeSpan.FromDays(EXPIRATION_JOURS));
-
-            _logger.LogInformation("Article {ArticleId} ajouté au panier {PanierId}", dto.ArticleId, panierId);
-
-            return MapToDto(panier);
-        }
-
-        public async Task<PanierResponseDto> ModifierQuantiteAsync(string panierId, ModifierQuantiteDto dto)
-        {
-            var key = $"panier:{panierId}";
-            var panier = await _redis.GetAsync<Panier>(key);
-
-            if (panier == null)
-            {
-                throw new KeyNotFoundException($"Panier {panierId} introuvable");
-            }
-
-            var item = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
-
-            if (item != null)
-            {
-                if (dto.NouvelleQuantite <= 0)
-                {
-                    panier.Items.Remove(item);
+                    itemExistant.Quantite += dto.Quantite;
                 }
                 else
                 {
-                    item.Quantite = dto.NouvelleQuantite;
+                    panier.Items.Add(new PanierItem
+                    {
+                        ArticleId = dto.ArticleId,
+                        Nom = dto.Nom,
+                        Prix = dto.Prix,
+                        Quantite = dto.Quantite
+                    });
                 }
 
                 panier.DerniereModification = DateTime.UtcNow;
+                var key = $"panier:{panierId}";
                 await _redis.SetAsync(key, panier, TimeSpan.FromDays(EXPIRATION_JOURS));
-            }
 
-            return MapToDto(panier);
+                _logger.LogInformation("Article {ArticleId} ajouté au panier {PanierId}", dto.ArticleId, panierId);
+
+                return MapToDto(panier);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de l'ajout d'article au panier {PanierId}", panierId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ✅ MODIFIÉ: Crée automatiquement le panier si nécessaire
+        /// </summary>
+        public async Task<PanierResponseDto> ModifierQuantiteAsync(string panierId, ModifierQuantiteDto dto)
+        {
+            try
+            {
+                var panier = await ObtenirOuCreerPanierAsync(panierId);
+
+                var item = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
+
+                if (item != null)
+                {
+                    if (dto.NouvelleQuantite <= 0)
+                    {
+                        panier.Items.Remove(item);
+                    }
+                    else
+                    {
+                        item.Quantite = dto.NouvelleQuantite;
+                    }
+
+                    panier.DerniereModification = DateTime.UtcNow;
+                    var key = $"panier:{panierId}";
+                    await _redis.SetAsync(key, panier, TimeSpan.FromDays(EXPIRATION_JOURS));
+                }
+
+                return MapToDto(panier);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur lors de la modification de quantité dans le panier {PanierId}", panierId);
+                throw;
+            }
         }
 
         public async Task<bool> SupprimerArticleAsync(string panierId, int articleId)
@@ -140,6 +181,7 @@ namespace PanierService.Services
                 Items = panier.Items,
                 NombreArticles = panier.NombreArticles,
                 Total = panier.Total,
+                //DateCreation = panier.DateCreation,
                 DerniereModification = panier.DerniereModification
             };
         }
