@@ -1,8 +1,8 @@
-# �tape 1 : Build
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+﻿# Étape 1 : Build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build  # ✅ Version 8.0
 WORKDIR /app
 
-# Copier le .csproj et restaurer les d�pendances
+# Copier le .csproj et restaurer les dépendances
 COPY *.csproj ./
 RUN dotnet restore
 
@@ -10,8 +10,8 @@ RUN dotnet restore
 COPY . ./
 RUN dotnet publish -c Release -o out
 
-# �tape 2 : Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+# Étape 2 : Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0  # ✅ Version 8.0
 WORKDIR /app
 COPY --from=build /app/out .
 
