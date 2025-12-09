@@ -7,7 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options =>
 {
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    Console.WriteLine($"🚀 Écoute sur le port: {port}");
+    Console.WriteLine($"Écoute sur le port: {port}");
     options.ListenAnyIP(int.Parse(port));
 });
 
@@ -16,7 +16,7 @@ var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL")
     ?? Environment.GetEnvironmentVariable("REDIS_PRIVATE_URL")
     ?? "redis://localhost:6379";
 
-Console.WriteLine($"🔴 Redis URL brute: {redisUrl}");
+Console.WriteLine($"Redis URL brute: {redisUrl}");
 
 string redisConnectionString;
 try
@@ -34,7 +34,7 @@ try
         }
 
         redisConnectionString = $"{host}:{port},password={password},ssl=false,abortConnect=false,connectTimeout=15000,syncTimeout=5000";
-        Console.WriteLine($"✅ Redis parsé: {host}:{port}");
+        Console.WriteLine($"Redis parsé: {host}:{port}");
     }
     else
     {
@@ -43,15 +43,15 @@ try
 
     var redis = ConnectionMultiplexer.Connect(redisConnectionString);
     builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
-    Console.WriteLine("✅ Connexion Redis réussie");
+    Console.WriteLine("Connexion Redis réussie");
 
     var db = redis.GetDatabase();
     db.StringSet("test", "ok", TimeSpan.FromSeconds(10));
-    Console.WriteLine("✅ Test Redis OK");
+    Console.WriteLine("Test Redis OK");
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ Erreur Redis: {ex.Message}");
+    Console.WriteLine($"Erreur Redis: {ex.Message}");
 }
 
 builder.Services.AddScoped<IRedisService, RedisService>();
@@ -97,5 +97,5 @@ app.MapGet("/health", () =>
     });
 });
 
-Console.WriteLine("🚀 Application démarrée");
+Console.WriteLine("Application démarrée");
 app.Run();

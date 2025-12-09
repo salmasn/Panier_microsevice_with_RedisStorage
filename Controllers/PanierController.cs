@@ -53,6 +53,7 @@ namespace PanierService.Controllers
             }
         }
 
+        //Appelle le service pour ajouter un article ou augmenter la quantité s’il existe déjà
         // POST: api/panier/{panierId}/ajouter
         [HttpPost("{panierId}/ajouter")]
         public async Task<ActionResult<PanierResponseDto>> AjouterArticle(
@@ -136,5 +137,26 @@ namespace PanierService.Controllers
                 return StatusCode(500, "Erreur serveur");
             }
         }
+
+        // DELETE: api/panier/{panierId}
+        [HttpDelete("{panierId}")]
+        public async Task<ActionResult> SupprimerPanier(string panierId)
+        {
+            try
+            {
+                var resultat = await _panierService.DeletePanierAsync(panierId); // supprime la clé Redis
+
+                if (resultat)
+                    return Ok(new { message = "Panier supprimé" });
+
+                return NotFound($"Panier {panierId} introuvable");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erreur suppression panier");
+                return StatusCode(500, "Erreur serveur");
+            }
+        }
+
     }
 }

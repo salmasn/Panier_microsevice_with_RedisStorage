@@ -1,5 +1,6 @@
 ﻿using PanierService.Models;
 using PanierService.Models.DTOs;
+using StackExchange.Redis;
 
 namespace PanierService.Services
 {
@@ -19,6 +20,7 @@ namespace PanierService.Services
         {
             var panier = new Panier();
             var key = $"panier:{panier.Id}";
+            //Sauvegarder dans Redis avec expiration de 7 jours
             await _redis.SetAsync(key, panier, TimeSpan.FromDays(EXPIRATION_JOURS));
             _logger.LogInformation("Nouveau panier créé: {PanierId}", panier.Id);
             return panier.Id;
@@ -73,13 +75,16 @@ namespace PanierService.Services
         {
             try
             {
-                // ✅ Utiliser ObtenirOuCreerPanierAsync au lieu de GetAsync
+                // ✅ Utiliser ObtenirOuCreerPanierAsync pour recuperer ou creer panier s'il n'existe pas 
                 var panier = await ObtenirOuCreerPanierAsync(panierId);
-
+                
+                //cherche le premier élément qui correspond a l'article cherché
+                //Pour chaque item i de la liste, on vérifie si i.ArticleId correspond à dto.ArticleId
                 var itemExistant = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
 
                 if (itemExistant != null)
                 {
+                    //incrementation
                     itemExistant.Quantite += dto.Quantite;
                 }
                 else
@@ -118,7 +123,7 @@ namespace PanierService.Services
                 var panier = await ObtenirOuCreerPanierAsync(panierId);
 
                 var item = panier.Items.FirstOrDefault(i => i.ArticleId == dto.ArticleId);
-
+                //modif de quantité
                 if (item != null)
                 {
                     if (dto.NouvelleQuantite <= 0)
@@ -167,11 +172,27 @@ namespace PanierService.Services
             return false;
         }
 
-        public async Task<bool> ViderPanierAsync(string panierId)
+        public async Task<bool> DeletePanierAsync(string panierId)
         {
             var key = $"panier:{panierId}";
             return await _redis.DeleteAsync(key);
         }
+
+        public async Task<bool> ViderPanierAsync(string panierId)
+        {
+            var key = $"panier:{panierId}";
+
+            var panier = await _redis.GetAsync<Panier>(key);
+            if (panier == null)
+                return false; // Panier inexistant
+
+            panier.Items.Clear(); // Vide la liste d'articles
+            panier.DerniereModification = DateTime.UtcNow;
+
+            await _redis.SetAsync(key, panier, TimeSpan.FromDays(7));
+            return true;
+        }
+
 
         private PanierResponseDto MapToDto(Panier panier)
         {

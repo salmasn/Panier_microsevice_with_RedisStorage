@@ -10,6 +10,8 @@ namespace PanierService.Services
         Task<PanierResponseDto> ModifierQuantiteAsync(string panierId, ModifierQuantiteDto dto);
         Task<bool> SupprimerArticleAsync(string panierId, int articleId);
         Task<bool> ViderPanierAsync(string panierId);
+
+        Task<bool> DeletePanierAsync(string panierId);
         Task<string> CreerNouveauPanierAsync();
     }
 }
