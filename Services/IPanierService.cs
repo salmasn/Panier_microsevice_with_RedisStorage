@@ -11,7 +11,7 @@ namespace PanierService.Services
         Task<bool> SupprimerArticleAsync(string panierId, int articleId);
         Task<bool> ViderPanierAsync(string panierId);
 
-        Task<bool> DeletePanierAsync(string panierId);
+
         Task<string> CreerNouveauPanierAsync();
     }
 }
