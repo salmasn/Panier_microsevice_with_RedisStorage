@@ -176,8 +176,23 @@ namespace PanierService.Services
         public async Task<bool> ViderPanierAsync(string panierId)
         {
             var key = $"panier:{panierId}";
-            return await _redis.DeleteAsync(key);
+
+            var panier = await _redis.GetAsync<Panier>(key);
+            if (panier == null)
+                return false; // Panier inexistant
+
+            panier.Items.Clear(); // Vide la liste d'articles
+            panier.DerniereModification = DateTime.UtcNow;
+
+            await _redis.SetAsync(key, panier, TimeSpan.FromDays(7));
+            return true;
         }
+
+        //public async Task<bool> ViderPanierAsync(string panierId)
+        //{
+        //    var key = $"panier:{panierId}";
+        //    return await _redis.DeleteAsync(key);
+        //}
 
 
         private PanierResponseDto MapToDto(Panier panier)
