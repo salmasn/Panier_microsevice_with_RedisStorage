@@ -172,25 +172,11 @@ namespace PanierService.Services
             return false;
         }
 
-        public async Task<bool> DeletePanierAsync(string panierId)
-        {
-            var key = $"panier:{panierId}";
-            return await _redis.DeleteAsync(key);
-        }
 
         public async Task<bool> ViderPanierAsync(string panierId)
         {
             var key = $"panier:{panierId}";
-
-            var panier = await _redis.GetAsync<Panier>(key);
-            if (panier == null)
-                return false; // Panier inexistant
-
-            panier.Items.Clear(); // Vide la liste d'articles
-            panier.DerniereModification = DateTime.UtcNow;
-
-            await _redis.SetAsync(key, panier, TimeSpan.FromDays(7));
-            return true;
+            return await _redis.DeleteAsync(key);
         }
 
 
